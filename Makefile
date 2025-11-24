@@ -2,7 +2,7 @@
 
 .DEFAULT_GOAL := all
 
-.PHONY: all check clean help run test version
+.PHONY: all check clean example help run test version
 
 COMMA	:= ,
 EMPTY	:=
@@ -38,6 +38,19 @@ test:
 
 run:
 	uv run python -m mosaic -h
+
+example:
+	# input image: test.jpg (1024 x 1297)
+	# output image: test_mosaic.jpg (3072 x 3072)
+	# tile directory: images
+	# output size: 3072
+	# tile size: 50
+	uv run python -m mosaic \
+		-i test.jpg \
+		-o test_mosaic.jpg \
+		-d images \
+		-s 3072 \
+		-t 50
 
 version:
 	uv run python -m mosaic --version

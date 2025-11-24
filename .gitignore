@@ -8,7 +8,10 @@ dist/
 htmlcov/
 .idea
 .idea/
+images
+images/
 *.iml
+*.jp*g
 MANIFEST
 .noseids
 public
@@ -23,5 +26,6 @@ results/
 results.html
 .spyproject/
 *.swp
+tags
 target/
 venv/

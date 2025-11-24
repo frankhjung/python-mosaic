@@ -1,8 +1,8 @@
 *~
 *.bak
 *,cover
-cover/
 .coverage
+coverage.xml
 dist/
 .DS_Store
 htmlcov/
@@ -14,7 +14,7 @@ images/
 *.jp*g
 MANIFEST
 .noseids
-public
+public/
 *.pyc
 __pycache__
 *.pyo

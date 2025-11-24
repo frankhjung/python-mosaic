@@ -34,7 +34,7 @@ endif
 	uv run ruff check --fix $(SRCS)
 
 test:
-	uv run pytest -v tests/test*.py
+	uv run pytest -v tests/test_*.py
 
 run:
 	uv run python -m mosaic -h
@@ -61,4 +61,5 @@ clean:
 	$(RM) -rf python_*.egg-info/
 	$(RM) -v *.pyc *.pyo
 	$(RM) -v **/*.pyc **/*.pyo
-	$(RM) -rf .venv
+	$(RM) -rf .venv/
+	$(RM) -rf public/

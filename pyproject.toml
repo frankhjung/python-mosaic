@@ -25,6 +25,10 @@ line-ending = "auto"
 
 [dependency-groups]
 dev = [
+    "bandit>=1.9.2",
+    "pdoc>=16.0.0",
     "pytest>=9.0.1",
+    "pytest-cov>=7.0.0",
+    "pytest-html>=4.1.1",
     "ruff>=0.14.5",
 ]

@@ -14,6 +14,11 @@ import mosaic_lib
 
 
 def main():
+    """
+    Main entry point for the mosaic creation script.
+
+    Parses command line arguments and calls the mosaic creation library.
+    """
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description="Create a mosaic of images using an input image as a base."

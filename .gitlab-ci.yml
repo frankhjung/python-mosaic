@@ -1,0 +1,68 @@
+---
+
+workflow:
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    # if already in a merge request pipeline then don't add to branch pipeline
+    - if: $CI_OPEN_MERGE_REQUESTS
+      when: never
+    # if no open merge request then add to branch pipeline
+    - if: $CI_COMMIT_BRANCH
+
+stages:
+  - validate
+  - deploy
+
+validate:
+  image: ghcr.io/astral-sh/uv:debian-slim
+  stage: validate
+  variables:
+    PROJECT: "mosaic"
+  except:
+    - tags
+  before_script:
+    - uv --version
+  script:
+    # ensure public folder exists
+    - mkdir public
+    # check formatting
+    - uv run ruff format --check
+    # unit tests and code coverage
+    - uv run pytest --junitxml=public/pytest_report.xml
+      --html=public/pytest_report.html --self-contained-html
+      --cov --cov-report=xml --cov-report=html:public/coverage
+      tests/test_*.py
+    # security scan
+    - uv run bandit --configfile .bandit.yaml --recursive
+      --format html --output public/bandit_report.html ${PROJECT}*.py
+    # create pydocs
+    - uv run pdoc ${PROJECT}*.py --output-directory public
+    # run program
+    - uv run python -m mosaic -h
+  # regex to the get coverage percentage from pytest (used for badge)
+  coverage: /(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/
+  artifacts:
+    paths:
+      - public
+    reports:
+      junit: public/pytest_report.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+  cache:
+    paths:
+      - .cache/pip
+      - .venv
+
+pages:
+  image: alpine
+  stage: deploy
+  rules:
+    # if protected ref then deploy automatically otherwise deploy manually
+    - if: $CI_COMMIT_REF_PROTECTED == "true"
+    - when: manual
+  script:
+    - echo Deploying pages ...
+  artifacts:
+    paths:
+      - public

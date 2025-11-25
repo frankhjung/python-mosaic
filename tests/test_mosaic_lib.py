@@ -110,3 +110,29 @@ def test_find_best_match():
     target = np.array([200, 200, 200])
     match = mosaic_lib.find_best_match(target, tiles)
     assert match == "img3"
+
+
+def test_calculate_grid_dimensions():
+    # Case 1: Perfect fit
+    # Input: 100x200 (HxW), Output size: 400, Tile size: 20
+    # Scale = 2.0 -> Scaled: 200x400
+    # Tiles X = 400/20 = 20
+    # Tiles Y = 200/20 = 10
+    nx, ny, w, h = mosaic_lib.calculate_grid_dimensions(100, 200, 400, 20)
+    assert nx == 20
+    assert ny == 10
+    assert w == 400
+    assert h == 200
+
+    # Case 2: Rounding up
+    # Input: 100x100, Output size: 105, Tile size: 10
+    # Scale = 1.05 -> Scaled: 105x105
+    # Tiles X = ceil(105/10) = 11
+    # Tiles Y = ceil(105/10) = 11
+    # Actual W = 110
+    # Actual H = 110
+    nx, ny, w, h = mosaic_lib.calculate_grid_dimensions(100, 100, 105, 10)
+    assert nx == 11
+    assert ny == 11
+    assert w == 110
+    assert h == 110

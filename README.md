@@ -30,18 +30,35 @@ This project uses [uv](https://github.com/astral-sh/uv) for package management.
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-### Run checks and tests
+### Initialize Environment
+
+Sync the environment and install dependencies:
 
 ```bash
-make
+uv sync
 ```
 
-This will automatically install dependencies and run linting and tests.
+### Run Checks and Tests
 
-### Run the application
+You can run the standard checks using `make` (which uses `uv` internally) or run them directly with `uv`:
 
 ```bash
+# Using Make
+make
+
+# Using uv directly
+uv run ruff check .
+uv run pytest
+```
+
+### Run the Application
+
+```bash
+# Using Make
 make run
+
+# Using uv directly
+uv run mosaic -h
 ```
 
 ## CLI Usage

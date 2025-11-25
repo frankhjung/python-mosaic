@@ -83,8 +83,6 @@ def load_tile_metadata(
         try:
             # Convert Path to str for cv2
             img = cv2.imread(str(filepath))
-            if img is None:
-                continue
 
             processed_img = resize_and_pad_image(img, target_size)
             avg_color = get_average_color(processed_img)
@@ -100,7 +98,7 @@ def load_tile_metadata(
             print(f"Error processing {filepath.name}: {e}")
             continue
 
-    return tiles
+    return tiles  # type: ignore
 
 
 def find_best_match(
@@ -159,8 +157,6 @@ def create_mosaic(
     """
     # 1. Load Input Image
     input_image = cv2.imread(str(input_image_path))
-    if input_image is None:
-        raise ValueError(f"Could not read input image: {input_image_path}")
 
     input_h, input_w = input_image.shape[:2]
 

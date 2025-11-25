@@ -1,5 +1,4 @@
 ---
-
 workflow:
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -34,9 +33,9 @@ validate:
       tests/test_*.py
     # security scan
     - uv run bandit --configfile .bandit.yaml --recursive
-      --format html --output public/bandit_report.html ${PROJECT}*.py
+      --format html --output public/bandit_report.html ${PROJECT}/
     # create pydocs
-    - uv run pdoc ${PROJECT}*.py --output-directory public
+    - uv run pdoc ${PROJECT}/ --output-directory public
     # run program
     - uv run python -m mosaic -h
   # regex to the get coverage percentage from pytest (used for badge)

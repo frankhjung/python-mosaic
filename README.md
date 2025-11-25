@@ -4,11 +4,21 @@ A Python project for mosaic generation.
 
 This will create a mosaic of images using an input image as a base. The mosaic will be created by using the average color of each tile in the input image to find the best matching image in the directory of images to use.
 
-## Example
+## Example - call mosaic generation with example images
 
 ```bash
 make example
 ```
+
+## Requirements
+
+- Python >= 3.10
+- [uv](https://github.com/astral-sh/uv) package manager
+
+### Dependencies
+
+- `numpy` - Numerical computing
+- `opencv-python-headless` - Image processing
 
 ## Quick Start
 
@@ -34,6 +44,43 @@ This will automatically install dependencies and run linting and tests.
 make run
 ```
 
+## CLI Usage
+
+```bash
+mosaic -i INPUT -d DIRECTORY -o OUTPUT -s SIZE -t TILE
+```
+
+| Option | Description |
+|--------|-------------|
+| `-i, --input` | Path to the input image |
+| `-d, --directory` | Directory containing tile images |
+| `-o, --output` | Path for the output mosaic image |
+| `-s, --size` | Size of the output image (in pixels) |
+| `-t, --tile` | Size of each tile (in pixels) |
+
+### CLI Example
+
+```bash
+uv run mosaic -i photo.jpg -d tiles/ -o mosaic.jpg -s 2000 -t 50
+```
+
+## API Usage
+
+You can also use the library programmatically:
+
+```python
+from pathlib import Path
+import mosaic
+
+mosaic.create_mosaic(
+    input_image_path=Path("photo.jpg"),
+    tiles_directory=Path("tiles/"),
+    output_path=Path("mosaic.jpg"),
+    output_size=2000,
+    tile_size=50,
+)
+```
+
 ## Development
 
 - **Linting**: `make check`
@@ -42,10 +89,29 @@ make run
 
 ## Implementation Details
 
-The project is structured into a CLI tool (`mosaic.py`) and a reusable library (`mosaic_lib.py`).
+The project follows a standard Python package structure:
+
+### Project Structure
+
+```text
+mosaic/
+├── mosaic/
+│   ├── __init__.py      # Package init, exports public API
+│   ├── __main__.py      # CLI entry point for `python -m mosaic`
+│   └── lib.py           # Core library functions
+├── tests/
+│   └── test_mosaic_lib.py
+├── pyproject.toml
+├── Makefile
+└── README.md
+```
 
 ### Coding Approach
 
 - **Functional Programming**: The library uses functional programming techniques. Functions are pure where possible and avoid maintaining global state.
-- **Library Separation**: Core logic is isolated in `mosaic_lib.py`, making it easy to test and reuse.
+- **Library Separation**: Core logic is isolated in `mosaic/lib.py`, making it easy to test and reuse.
 - **Tile Processing**: The `resize_and_pad_image` function handles non-square images by scaling them to fit the target tile size while maintaining aspect ratio, and padding the rest with the image's dominant color.
+
+## License
+
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.

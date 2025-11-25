@@ -1,13 +1,9 @@
-import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-# Add parent directory to path to import mosaic_lib
-sys.path.append(str(Path(__file__).parent.parent))
-
-import mosaic_lib
+from mosaic import lib as mosaic_lib
 
 
 def test_get_dominant_color():

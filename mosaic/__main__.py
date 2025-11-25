@@ -8,9 +8,10 @@ Create a mosaic of images using an input image as a base.
 
 import argparse
 import sys
+from importlib.metadata import version
 from pathlib import Path
 
-import mosaic_lib
+import mosaic
 
 
 def main():
@@ -22,6 +23,12 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(
         description="Create a mosaic of images using an input image as a base."
+    )
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"%(prog)s {version('mosaic')}",
     )
     parser.add_argument(
         "-i", "--input", help="Input image", required=True, type=Path
@@ -54,7 +61,7 @@ def main():
         sys.exit(1)
 
     try:
-        mosaic_lib.create_mosaic(
+        mosaic.create_mosaic(
             input_image_path=args.input,
             tiles_directory=args.directory,
             output_path=args.output,

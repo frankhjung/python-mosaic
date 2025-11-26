@@ -40,16 +40,16 @@ run:
 	uv run python -m mosaic -h
 
 example:
-	# input image: test.jpg (1024 x 1297)
-	# output image: test_mosaic.jpg (3072 x 3072)
+	# input image: test.jpg (561 x 422)
+	# output image: test_mosaic.jpg (1600 x 2000)
 	# tile directory: images
-	# output size: 3072
+	# output size: 2000
 	# tile size: 50
 	uv run python -m mosaic \
 		-i test.jpg \
 		-o test_mosaic.jpg \
 		-d images \
-		-s 3072 \
+		-s 2000 \
 		-t 50
 
 version:

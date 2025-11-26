@@ -12,9 +12,13 @@ def get_dominant_color(image: np.ndarray) -> Tuple[float, float, float]:
     Uses the average color of the pixels.
     """
     # Reshape to list of pixels
-    pixels = image.reshape(-1, 3)
-    # Calculate average
-    average_color = np.mean(pixels, axis=0)
+    pixels = image.reshape(-1, 3).astype(float)
+    # Calculate average using RMS (Root Mean Square)
+    # 1. Square the pixels
+    # 2. Calculate mean of squares
+    # 3. Take square root
+    mean_squares = np.mean(np.square(pixels), axis=0)
+    average_color = np.sqrt(mean_squares)
     return tuple(average_color)
 
 
@@ -115,12 +119,40 @@ def find_best_match(
     # Shape: (num_tiles, 3)
     tile_colors = np.array([tile["average_color"] for tile in tiles])
 
-    # Calculate Euclidean distance between target_color and all tile_colors
-    # target_color shape: (3,) -> broadcast to (num_tiles, 3)
-    distances = np.linalg.norm(tile_colors - target_color, axis=1)
+    # Calculate Redmean distance
+    # tile_colors is (N, 3) where columns are B, G, R
+    # target_color is (3,) where elements are B, G, R
+
+    # Extract components
+    # shape: (N,)
+    b_tiles = tile_colors[:, 0].astype(float)
+    g_tiles = tile_colors[:, 1].astype(float)
+    r_tiles = tile_colors[:, 2].astype(float)
+
+    b_target = float(target_color[0])
+    g_target = float(target_color[1])
+    r_target = float(target_color[2])
+
+    # Calculate mean Red
+    rmean = (r_tiles + r_target) / 2
+
+    # Calculate deltas
+    delta_r = r_tiles - r_target
+    delta_g = g_tiles - g_target
+    delta_b = b_tiles - b_target
+
+    # Calculate weights
+    w_r = 2 + rmean / 256
+    w_g = 4
+    w_b = 2 + (255 - rmean) / 256
+
+    # Calculate squared distance (no need for sqrt for comparison)
+    distances_sq = (
+        (w_r * (delta_r**2)) + (w_g * (delta_g**2)) + (w_b * (delta_b**2))
+    )
 
     # Find index of minimum distance
-    min_index = np.argmin(distances)
+    min_index = np.argmin(distances_sq)
 
     return tiles[min_index]["image"]
 

@@ -15,6 +15,22 @@ def test_get_dominant_color():
     assert color == (0.0, 0.0, 255.0)
 
 
+def test_get_dominant_color_rms():
+    # Create an image with two distinct colors: Black and White
+    # 50 pixels black (0,0,0), 50 pixels white (255,255,255)
+    image = np.zeros((10, 10, 3), dtype=np.uint8)
+    image[0:5, :] = (0, 0, 0)
+    image[5:10, :] = (255, 255, 255)
+
+    # Expected: sqrt((0^2 + 255^2)/2) = sqrt(65025/2) = sqrt(32512.5) ~= 180.31
+    color = mosaic_lib.get_dominant_color(image)
+
+    expected_val = np.sqrt((0**2 + 255**2) / 2)
+    expected = (expected_val, expected_val, expected_val)
+
+    assert np.allclose(color, expected)
+
+
 @patch("cv2.resize")
 def test_resize_and_pad_image(mock_resize):
     # Input image 100x50 (WxH)

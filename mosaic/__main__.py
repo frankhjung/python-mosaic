@@ -1,26 +1,45 @@
 #!/usr/bin/env python
 # flake8: noqa E203
 
-
 """
-Create a mosaic of images using an input image as a base.
+CLI entry point for the mosaic generation tool.
+
+This module provides a command-line interface to create mosaic images from
+a base image and a directory of tile images.
 """
 
 import argparse
 import sys
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
+from typing import Final, NoReturn
 
-import mosaic
+from mosaic import lib as mosaic_lib
+
+# Constants
+ERROR_EXIT_CODE: Final[int] = 1
 
 
-def main():
+def get_version() -> str:
     """
-    Main entry point for the mosaic creation script.
+    Retrieves the current version of the mosaic package.
 
-    Parses command line arguments and calls the mosaic creation library.
+    Returns:
+        The version string or 'unknown' if the package is not installed.
     """
-    # Parse command line arguments
+    try:
+        return version("mosaic")
+    except PackageNotFoundError:
+        return "unknown"
+
+
+def parse_arguments() -> argparse.Namespace:
+    """
+    Parses command-line arguments for the mosaic creation script.
+
+    Returns:
+        An argparse.Namespace object containing the parsed arguments.
+    """
     parser = argparse.ArgumentParser(
         description="Create a mosaic of images using an input image as a base."
     )
@@ -28,40 +47,71 @@ def main():
         "-v",
         "--version",
         action="version",
-        version=f"%(prog)s {version('mosaic')}",
+        version=f"%(prog)s {get_version()}",
     )
     parser.add_argument(
-        "-i", "--input", help="Input image", required=True, type=Path
-    )
-    parser.add_argument(
-        "-d",
-        "--directory",
-        help="Directory of images to use",
+        "-i",
+        "--input",
+        help="Path to the source image file.",
         required=True,
         type=Path,
     )
     parser.add_argument(
-        "-o", "--output", help="Output image", required=True, type=Path
+        "-d",
+        "--directory",
+        help="Directory containing images to use as tiles.",
+        required=True,
+        type=Path,
     )
     parser.add_argument(
-        "-s", "--size", help="Size of output image", required=True, type=int
+        "-o",
+        "--output",
+        help="Path where the resulting mosaic will be saved.",
+        required=True,
+        type=Path,
     )
     parser.add_argument(
-        "-t", "--tile", help="Tile size", required=True, type=int
+        "-s",
+        "--size",
+        help="The desired size of the largest dimension of the mosaic.",
+        required=True,
+        type=int,
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "-t",
+        "--tile",
+        help="The width and height of each square tile.",
+        required=True,
+        type=int,
+    )
+    return parser.parse_args()
 
-    # Check that the input image exists
+
+def main() -> NoReturn:
+    """
+    Main execution logic for the mosaic CLI.
+
+    Parses arguments, validates paths, and invokes the mosaic creation library.
+    Exits with code 0 on success or 1 on error.
+    """
+    args = parse_arguments()
+
+    # Validate input paths
     if not args.input.is_file():
-        print("Input image does not exist")
-        sys.exit(1)
-    # Check that the directory exists
+        print(
+            f"Error: Input image does not exist: {args.input}", file=sys.stderr
+        )
+        sys.exit(ERROR_EXIT_CODE)
+
     if not args.directory.is_dir():
-        print("Directory does not exist")
-        sys.exit(1)
+        print(
+            f"Error: Tiles directory does not exist: {args.directory}",
+            file=sys.stderr,
+        )
+        sys.exit(ERROR_EXIT_CODE)
 
     try:
-        mosaic.create_mosaic(
+        mosaic_lib.create_mosaic(
             input_image_path=args.input,
             tiles_directory=args.directory,
             output_path=args.output,
@@ -69,9 +119,13 @@ def main():
             tile_size=args.tile,
         )
         print(f"Mosaic created successfully at {args.output}")
+        sys.exit(0)
+    except (ValueError, FileNotFoundError) as e:
+        print(f"Configuration error: {e}", file=sys.stderr)
+        sys.exit(ERROR_EXIT_CODE)
     except Exception as e:
-        print(f"Error creating mosaic: {e}")
-        sys.exit(1)
+        print(f"An unexpected error occurred: {e}", file=sys.stderr)
+        sys.exit(ERROR_EXIT_CODE)
 
 
 if __name__ == "__main__":

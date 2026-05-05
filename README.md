@@ -2,7 +2,9 @@
 
 A Python project for mosaic generation.
 
-This will create a mosaic of images using an input image as a base. The mosaic will be created by using the average color of each tile in the input image to find the best matching image in the directory of images to use.
+This will create a mosaic of images using an input image as a base. The mosaic
+will be created by using the average color of each tile in the input image to
+find the best matching image in the directory of images to use.
 
 ## Example - call mosaic generation with example images
 
@@ -40,7 +42,8 @@ uv sync
 
 ### Run Checks and Tests
 
-You can run the standard checks using `make` (which uses `uv` internally) or run them directly with `uv`:
+You can run the standard checks using `make` (which uses `uv` internally) or run
+them directly with `uv`:
 
 ```bash
 # Using Make
@@ -50,6 +53,21 @@ make
 uv run ruff check .
 uv run pytest
 ```
+
+### Fix Ruff Warnings with uv
+
+Use Ruff's auto-fix mode to resolve fixable lint warnings:
+
+```bash
+# Check and automatically fix warnings where possible
+uv run ruff check --fix .
+
+# (Optional) Apply formatting as well
+uv run ruff format .
+```
+
+**Tip:** `make check` already runs formatting and `ruff check --fix` for this
+project.
 
 ### Run the Application
 
@@ -125,10 +143,16 @@ mosaic/
 
 ### Coding Approach
 
-- **Functional Programming**: The library uses functional programming techniques. Functions are pure where possible and avoid maintaining global state.
-- **Library Separation**: Core logic is isolated in `mosaic/lib.py`, making it easy to test and reuse.
-- **Tile Processing**: The `resize_and_pad_image` function handles non-square images by scaling them to fit the target tile size while maintaining aspect ratio, and padding the rest with the image's dominant color.
+- **Functional Programming**: The library uses functional programming
+  techniques. Functions are pure where possible and avoid maintaining global
+  state.
+- **Library Separation**: Core logic is isolated in `mosaic/lib.py`, making it
+  easy to test and reuse.
+- **Tile Processing**: The `resize_and_pad_image` function handles non-square
+  images by scaling them to fit the target tile size while maintaining aspect
+  ratio, and padding the rest with the image's dominant color.
 
 ## License
 
-This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0 - see the
+[LICENSE](LICENSE) file for details.

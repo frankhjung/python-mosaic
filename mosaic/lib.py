@@ -1,53 +1,85 @@
-import math
-from pathlib import Path
-from typing import Any, Dict, List, Tuple
+"""Library for creating mosaics from collections of images.
 
-import cv2
+This module provides functions for image analysis, tile processing, and
+vectorised mosaic construction using NumPy and OpenCV.
+"""
+
+import math
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Final, cast
+
+import cv2  # type: ignore
 import numpy as np
 
+# Constants
+BITS_PER_CHANNEL: Final[int] = 256
+MAX_COLOUR_VALUE: Final[int] = 255
 
-def get_dominant_color(image: np.ndarray) -> Tuple[float, float, float]:
+
+@dataclass(frozen=True)
+class Tile:
+    """Metadata for a mosaic tile image.
+
+    Attributes:
+        filename: The name of the source image file.
+        image: The processed (resized and padded) image data.
+        average_color: The average BGR colour of the image as a NumPy array.
+
     """
-    Finds the dominant color in an image.
-    Uses the average color of the pixels.
+
+    filename: str
+    image: np.ndarray
+    average_color: np.ndarray
+
+
+def get_dominant_color(image: np.ndarray) -> tuple[float, float, float]:
+    """Find the dominant colour in an image using Root Mean Square (RMS).
+
+    Args:
+        image: The input BGR image as a NumPy array.
+
+    Returns:
+        A tuple of (B, G, R) floats representing the dominant colour.
+
     """
-    # Reshape to list of pixels
-    pixels = image.reshape(-1, 3).astype(float)
-    # Calculate average using RMS (Root Mean Square)
-    # 1. Square the pixels
-    # 2. Calculate mean of squares
-    # 3. Take square root
-    mean_squares = np.mean(np.square(pixels), axis=0)
-    average_color = np.sqrt(mean_squares)
-    return tuple(average_color)
+    # Use RMS for better colour representation than arithmetic mean
+    rms = np.sqrt(
+        np.mean(np.square(image.reshape(-1, 3).astype(float)), axis=0)
+    )
+    return float(rms[0]), float(rms[1]), float(rms[2])
 
 
 def resize_and_pad_image(image: np.ndarray, target_size: int) -> np.ndarray:
-    """
-    Resizes an image to fit within target_size x target_size while
-    maintaining aspect ratio.
-    Pads the remaining area with the dominant color to make it square.
+    """Resize an image to fit within a square while maintaining aspect ratio.
+
+    The image is scaled so its largest dimension matches target_size. The
+    remaining area is padded with the image's dominant colour to form a
+    perfect square.
+
+    Args:
+        image: The input BGR image.
+        target_size: The desired width and height of the output square.
+
+    Returns:
+        The processed square image.
+
     """
     h, w = image.shape[:2]
     scale = target_size / max(h, w)
-    new_w = int(w * scale)
-    new_h = int(h * scale)
+    new_w, new_h = int(w * scale), int(h * scale)
 
-    resized = cv2.resize(image, (new_w, new_h))
+    resized = cast(np.ndarray, cv2.resize(image, (new_w, new_h)))
 
-    # Calculate padding
+    # Calculate padding to center the image
     delta_w = target_size - new_w
     delta_h = target_size - new_h
     top, bottom = delta_h // 2, delta_h - (delta_h // 2)
     left, right = delta_w // 2, delta_w - (delta_w // 2)
 
-    # Get dominant color for padding
     dominant_color = get_dominant_color(image)
 
-    # cv2.copyMakeBorder expects a scalar color, but dominant_color
-    # is a tuple/array.
-    # We need to pass it correctly.
-    padded_image = cv2.copyMakeBorder(
+    return cv2.copyMakeBorder(
         resized,
         top,
         bottom,
@@ -55,126 +87,160 @@ def resize_and_pad_image(image: np.ndarray, target_size: int) -> np.ndarray:
         right,
         cv2.BORDER_CONSTANT,
         value=dominant_color,
-    )
-
-    return padded_image
+    )  # type: ignore
 
 
 def get_average_color(image: np.ndarray) -> np.ndarray:
+    """Calculate the average BGR colour of an image.
+
+    Args:
+        image: The input BGR image.
+
+    Returns:
+        A NumPy array containing the [B, G, R] average values.
+
     """
-    Calculates the average color of an image.
-    """
-    return np.average(np.average(image, axis=0), axis=0)
+    return np.average(image, axis=(0, 1))
 
 
-def load_tile_metadata(
-    directory: Path, target_size: int
-) -> List[Dict[str, Any]]:
+def process_single_tile(filepath: Path, target_size: int) -> Tile | None:
+    """Load and process a single image file into a Tile.
+
+    Args:
+        filepath: Path to the image file.
+        target_size: Desired square size for the tile.
+
+    Returns:
+        A Tile object if successful, otherwise None.
+
     """
-    Loads images from a directory, processes them (resize/pad), and calculates
-    average color.
-    Returns a list of dictionaries with image data and average color.
+    try:
+        img = cast(np.ndarray | None, cv2.imread(str(filepath)))
+        if img is None:
+            return None
+
+        processed_img = resize_and_pad_image(img, target_size)
+        avg_color = get_average_color(processed_img)
+
+        return Tile(
+            filename=filepath.name,
+            image=processed_img,
+            average_color=avg_color,
+        )
+    except (OSError, cv2.error) as e:  # type: ignore[misc]
+        print(f"Error processing {filepath.name}: {e}")
+        return None
+
+
+def load_tile_metadata(directory: Path, target_size: int) -> list[Tile]:
+    """Load and process all images from a directory into Tiles.
+
+    Args:
+        directory: The directory containing source images.
+        target_size: The size to which each tile should be processed.
+
+    Returns:
+        A list of processed Tile objects.
+
+    Raises:
+        FileNotFoundError: If the directory does not exist.
+
     """
-    tiles = []
-    directory_path = Path(directory)
-    if not directory_path.exists():
+    if not directory.is_dir():
         raise FileNotFoundError(f"Directory not found: {directory}")
 
-    for filepath in directory_path.iterdir():
-        if not filepath.is_file():
-            continue
-
-        try:
-            # Convert Path to str for cv2
-            img = cv2.imread(str(filepath))
-
-            processed_img = resize_and_pad_image(img, target_size)
-            avg_color = get_average_color(processed_img)
-
-            tiles.append(
-                {
-                    "filename": filepath.name,
-                    "image": processed_img,
-                    "average_color": avg_color,
-                }
-            )
-        except Exception as e:
-            print(f"Error processing {filepath.name}: {e}")
-            continue
-
-    return tiles  # type: ignore
+    return [
+        t
+        for p in directory.iterdir()
+        if p.is_file()
+        if (t := process_single_tile(p, target_size)) is not None
+    ]
 
 
-def find_best_match(
-    target_color: np.ndarray, tiles: List[Dict[str, Any]]
+def vectorized_match_tiles(
+    target_colors: np.ndarray,
+    tiles: list[Tile],
 ) -> np.ndarray:
-    """
-    Finds the tile with the closest average color to the target color.
-    Uses vectorized calculation for better performance.
+    """Match multiple target colours to the best available tiles in one step.
+
+    Uses NumPy broadcasting to calculate the Redmean distance between every
+    target colour and every tile average colour simultaneously.
+
+    Args:
+        target_colors: A NumPy array of shape (N, 3) representing BGR targets.
+        tiles: A list of available Tile objects.
+
+    Returns:
+        A NumPy array of shape (N, tile_h, tile_w, 3) containing the best
+        matching tile images.
+
     """
     if not tiles:
-        raise ValueError("No tiles provided to find_best_match")
+        raise ValueError("No tiles provided for matching.")
 
-    # Extract all average colors into a numpy array
-    # Shape: (num_tiles, 3)
-    tile_colors = np.array([tile["average_color"] for tile in tiles])
+    # Extract tile data into contiguous arrays for vectorisation
+    tile_colors = np.array([t.average_color for t in tiles])  # (M, 3)
+    tile_images = np.array([t.image for t in tiles])  # (M, th, tw, 3)
 
-    # Calculate Redmean distance
-    # tile_colors is (N, 3) where columns are B, G, R
-    # target_color is (3,) where elements are B, G, R
+    # Prepare for broadcasting: (N, 1, 3) vs (1, M, 3)
+    # This results in (N, M, 3) distance components
+    t_colors = target_colors[:, np.newaxis, :]
+    s_colors = tile_colors[np.newaxis, :, :]
 
-    # Extract components
-    # shape: (N,)
-    b_tiles = tile_colors[:, 0].astype(float)
-    g_tiles = tile_colors[:, 1].astype(float)
-    r_tiles = tile_colors[:, 2].astype(float)
+    # Extract B, G, R components for Redmean distance formula
+    r_t, r_s = t_colors[..., 2], s_colors[..., 2]
+    rmean = (r_t + r_s) / 2.0
 
-    b_target = float(target_color[0])
-    g_target = float(target_color[1])
-    r_target = float(target_color[2])
+    dr = r_t - r_s
+    dg = t_colors[..., 1] - s_colors[..., 1]
+    db = t_colors[..., 0] - s_colors[..., 0]
 
-    # Calculate mean Red
-    rmean = (r_tiles + r_target) / 2
+    # Calculate squared Redmean distances (N, M)
+    w_r = 2.0 + rmean / BITS_PER_CHANNEL
+    w_g = 4.0
+    w_b = 2.0 + (MAX_COLOUR_VALUE - rmean) / BITS_PER_CHANNEL
 
-    # Calculate deltas
-    delta_r = r_tiles - r_target
-    delta_g = g_tiles - g_target
-    delta_b = b_tiles - b_target
+    distances_sq = (w_r * dr**2) + (w_g * dg**2) + (w_b * db**2)
 
-    # Calculate weights
-    w_r = 2 + rmean / 256
-    w_g = 4
-    w_b = 2 + (255 - rmean) / 256
+    # Find the index of the best matching tile for each target pixel
+    best_indices = np.argmin(distances_sq, axis=1)
 
-    # Calculate squared distance (no need for sqrt for comparison)
-    distances_sq = (
-        (w_r * (delta_r**2)) + (w_g * (delta_g**2)) + (w_b * (delta_b**2))
-    )
-
-    # Find index of minimum distance
-    min_index = np.argmin(distances_sq)
-
-    return tiles[min_index]["image"]
+    return tile_images[best_indices]
 
 
 def calculate_grid_dimensions(
-    input_h: int, input_w: int, output_size: int, tile_size: int
-) -> Tuple[int, int, int, int]:
-    """
-    Calculates the number of tiles in X and Y directions and the actual
-    output dimensions.
+    input_h: int,
+    input_w: int,
+    output_size: int,
+    tile_size: int,
+) -> tuple[int, int, int, int]:
+    """Calculate the grid layout and final output dimensions.
+
+    Args:
+        input_h: Original image height.
+        input_w: Original image width.
+        output_size: Target size for the largest dimension of the mosaic.
+        tile_size: The size of each square tile.
+
+    Returns:
+        A tuple of (num_tiles_x, num_tiles_y, actual_w, actual_h).
+
     """
     scale_factor = output_size / max(input_h, input_w)
-    scaled_h = int(input_h * scale_factor)
-    scaled_w = int(input_w * scale_factor)
+    scaled_h, scaled_w = (
+        int(input_h * scale_factor),
+        int(input_w * scale_factor),
+    )
 
-    num_tiles_x = int(math.ceil(scaled_w / tile_size))
-    num_tiles_y = int(math.ceil(scaled_h / tile_size))
+    num_tiles_x = math.ceil(scaled_w / tile_size)
+    num_tiles_y = math.ceil(scaled_h / tile_size)
 
-    actual_output_w = num_tiles_x * tile_size
-    actual_output_h = num_tiles_y * tile_size
-
-    return num_tiles_x, num_tiles_y, actual_output_w, actual_output_h
+    return (
+        num_tiles_x,
+        num_tiles_y,
+        num_tiles_x * tile_size,
+        num_tiles_y * tile_size,
+    )
 
 
 def create_mosaic(
@@ -184,47 +250,46 @@ def create_mosaic(
     output_size: int,
     tile_size: int,
 ) -> None:
-    """
-    Main function to create the mosaic.
-    """
-    # 1. Load Input Image
-    input_image = cv2.imread(str(input_image_path))
+    """Generate a mosaic and save it to a file.
 
-    input_h, input_w = input_image.shape[:2]
+    Args:
+        input_image_path: Path to the source image.
+        tiles_directory: Directory containing images to use as tiles.
+        output_path: Path where the resulting mosaic will be saved.
+        output_size: The desired size of the mosaic.
+        tile_size: The size of each square tile.
 
-    # 2. Calculate Grid
-    num_tiles_x, num_tiles_y, actual_output_w, actual_output_h = (
-        calculate_grid_dimensions(input_h, input_w, output_size, tile_size)
+    Raises:
+        ValueError: If no valid tiles are found or input image is invalid.
+
+    """
+    input_image = cast(np.ndarray | None, cv2.imread(str(input_image_path)))  # type: ignore[misc]
+    if input_image is None:
+        raise ValueError(f"Could not load input image: {input_image_path}")
+
+    h, w = input_image.shape[:2]
+    nx, ny, out_w, out_h = calculate_grid_dimensions(
+        h, w, output_size, tile_size
     )
 
-    output_image = np.zeros(
-        (actual_output_h, actual_output_w, 3), dtype=np.uint8
-    )
-
-    # Resize input image to match the grid structure for easier sampling
-    input_small = cv2.resize(input_image, (num_tiles_x, num_tiles_y))
-
-    # 3. Load Tiles
+    # Load and process tiles
     tiles = load_tile_metadata(tiles_directory, tile_size)
     if not tiles:
-        raise ValueError("No valid tiles found in directory.")
+        raise ValueError("No valid tiles found in the specified directory.")
 
-    # 4. Generate Mosaic
-    for y in range(num_tiles_y):
-        for x in range(num_tiles_x):
-            # Get target color from the small input image
-            target_color = input_small[y, x]
+    # Resize input to match the grid and flatten for vectorised matching
+    input_small = cast(np.ndarray, cv2.resize(input_image, (nx, ny)))
+    target_colors = input_small.reshape(-1, 3)
 
-            # Find best match
-            best_tile_img = find_best_match(target_color, tiles)
+    # Match all tiles at once
+    matched_tile_images = vectorized_match_tiles(target_colors, tiles)
 
-            # Place in output
-            y_start = y * tile_size
-            y_end = y_start + tile_size
-            x_start = x * tile_size
-            x_end = x_start + tile_size
+    # Reshape matched tiles back into a grid: (ny, nx, th, tw, 3)
+    grid = matched_tile_images.reshape(ny, nx, tile_size, tile_size, 3)
 
-            output_image[y_start:y_end, x_start:x_end] = best_tile_img
+    # Assemble the final image by rearranging axes and collapsing the grid
+    # Initial shape: (ny, nx, th, tw, 3)
+    # Desired shape: (ny * th, nx * tw, 3)
+    mosaic = grid.swapaxes(1, 2).reshape(out_h, out_w, 3)
 
-    # 5. Save
-    cv2.imwrite(str(output_path), output_image)
+    cv2.imwrite(str(output_path), mosaic)

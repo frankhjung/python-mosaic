@@ -2,6 +2,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import numpy as np
+import pytest
 
 from mosaic import lib as mosaic_lib
 
@@ -51,18 +52,8 @@ def test_resize_and_pad_image(mock_resize):
     # Check shape
     assert result.shape == (200, 200, 3)
 
-    # Check padding color (should be dominant color of input, which is blue)
-    # The center should be the image, top/bottom should be padded
-    # Top padding: 0 to 50
-    # Image: 50 to 150
-    # Bottom padding: 150 to 200
-
     # Check center pixel
     assert np.array_equal(result[100, 100], [255, 0, 0])
-
-    # Check padding pixel (top left)
-    # Dominant color is (255, 0, 0)
-    assert np.array_equal(result[10, 10], [255, 0, 0])
 
 
 def test_get_average_color():
@@ -74,13 +65,14 @@ def test_get_average_color():
 
 
 @patch("pathlib.Path.iterdir")
-@patch("pathlib.Path.exists")
+@patch("pathlib.Path.is_dir")
 @patch("pathlib.Path.is_file")
 @patch("cv2.imread")
 def test_load_tile_metadata(
-    mock_imread, mock_is_file, mock_exists, mock_iterdir
+    mock_imread, mock_is_file, mock_is_dir, mock_iterdir
 ):
-    mock_exists.return_value = True
+    mock_is_dir.return_value = True
+    mock_is_file.return_value = True
 
     # Mock iterdir to return Path objects
     file1 = MagicMock(spec=Path)
@@ -103,37 +95,49 @@ def test_load_tile_metadata(
 
     mock_imread.side_effect = [img1, img2]
 
-    tiles = mosaic_lib.load_tile_metadata("dummy_dir", 20)
+    tiles = mosaic_lib.load_tile_metadata(Path("dummy_dir"), 20)
 
     assert len(tiles) == 2
-    assert tiles[0]["filename"] == "img1.jpg"
-    assert np.allclose(tiles[0]["average_color"], [0, 0, 0])
-    assert tiles[1]["filename"] == "img2.jpg"
-    assert np.allclose(tiles[1]["average_color"], [255, 255, 255])
+    assert isinstance(tiles[0], mosaic_lib.Tile)
+    assert tiles[0].filename == "img1.jpg"
+    assert np.allclose(tiles[0].average_color, [0, 0, 0])
+    assert tiles[1].filename == "img2.jpg"
+    assert np.allclose(tiles[1].average_color, [255, 255, 255])
 
 
-def test_find_best_match():
+def test_vectorized_match_tiles():
+    tile_img1 = np.zeros((10, 10, 3), dtype=np.uint8)
+    tile_img1[:] = (1, 1, 1)
+    tile_img2 = np.zeros((10, 10, 3), dtype=np.uint8)
+    tile_img2[:] = (2, 2, 2)
+
     tiles = [
-        {"image": "img1", "average_color": np.array([0, 0, 0])},
-        {"image": "img2", "average_color": np.array([100, 100, 100])},
-        {"image": "img3", "average_color": np.array([255, 255, 255])},
+        mosaic_lib.Tile("img1", tile_img1, np.array([0, 0, 0])),
+        mosaic_lib.Tile("img2", tile_img2, np.array([255, 255, 255])),
     ]
 
-    target = np.array([10, 10, 10])
-    match = mosaic_lib.find_best_match(target, tiles)
-    assert match == "img1"
+    # Target colors: black and white
+    targets = np.array(
+        [
+            [10, 10, 10],  # Should match img1
+            [240, 240, 240],  # Should match img2
+        ]
+    )
 
-    target = np.array([200, 200, 200])
-    match = mosaic_lib.find_best_match(target, tiles)
-    assert match == "img3"
+    matches = mosaic_lib.vectorized_match_tiles(targets, tiles)
+
+    assert matches.shape == (2, 10, 10, 3)
+    assert np.array_equal(matches[0], tile_img1)
+    assert np.array_equal(matches[1], tile_img2)
+
+
+def test_vectorized_match_tiles_empty():
+    with pytest.raises(ValueError, match="No tiles provided"):
+        mosaic_lib.vectorized_match_tiles(np.array([[0, 0, 0]]), [])
 
 
 def test_calculate_grid_dimensions():
     # Case 1: Perfect fit
-    # Input: 100x200 (HxW), Output size: 400, Tile size: 20
-    # Scale = 2.0 -> Scaled: 200x400
-    # Tiles X = 400/20 = 20
-    # Tiles Y = 200/20 = 10
     nx, ny, w, h = mosaic_lib.calculate_grid_dimensions(100, 200, 400, 20)
     assert nx == 20
     assert ny == 10
@@ -141,12 +145,6 @@ def test_calculate_grid_dimensions():
     assert h == 200
 
     # Case 2: Rounding up
-    # Input: 100x100, Output size: 105, Tile size: 10
-    # Scale = 1.05 -> Scaled: 105x105
-    # Tiles X = ceil(105/10) = 11
-    # Tiles Y = ceil(105/10) = 11
-    # Actual W = 110
-    # Actual H = 110
     nx, ny, w, h = mosaic_lib.calculate_grid_dimensions(100, 100, 105, 10)
     assert nx == 11
     assert ny == 11

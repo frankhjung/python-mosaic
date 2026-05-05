@@ -11,19 +11,18 @@ CTAGS	:= $(shell which ctags)
 
 SRCS	:= $(wildcard *.py **/*.py)
 
-all:	check test run
+all: check test run ## Check, test, and run the project
 
-help:
-	@echo
-	@echo "Default goal: ${.DEFAULT_GOAL}"
-	@echo "  all:     default target to build project"
-	@echo "  check:   check style and lint code"
-	@echo "  run:     run against test data"
-	@echo "  test:    run unit tests"
-	@echo "  clean:   delete all generated files"
-	@echo
+.PHONY: help
+help: ## Display this help
+	@printf "Default goal: \033[36m%s\033[0m\n" "${.DEFAULT_GOAL}"
+	@awk 'BEGIN {FS = ":.*##"; \
+	  printf "\nUsage:\n  make \033[36m<target>\033[0m\n\nTargets:\n"} \
+	    /^[a-zA-Z_-]+:.*?##/ \
+	    { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 }' \
+	  $(MAKEFILE_LIST)
 
-check:
+check: ## Check style and lint code
 ifdef CTAGS
 	# ctags for vim
 	ctags --recurse -o tags $(SRCS)
@@ -33,13 +32,13 @@ endif
 	# check with ruff
 	uv run ruff check --fix $(SRCS)
 
-test:
+test: ## Run unit tests
 	uv run pytest -v tests/test_*.py
 
-run:
+run: ## Run against test data
 	uv run python -m mosaic -h
 
-example:
+example: ## Run a full example mosaic build
 	# input image: test.jpg (561 x 422)
 	# output image: test_mosaic.jpg (1600 x 2000)
 	# tile directory: images
@@ -52,10 +51,10 @@ example:
 		-s 2000 \
 		-t 50
 
-version:
+version: ## Print the package version
 	uv run python -m mosaic --version
 
-clean:
+clean: ## Delete all generated files
 	# clean build distribution
 	$(RM) -rf __pycache__ **/__pycache__
 	$(RM) -rf python_*.egg-info/

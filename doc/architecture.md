@@ -42,7 +42,8 @@ mosaic
 ├── Tile                      dataclass
 ├── TileLibrary               matching & memory management
 ├── MosaicGrid                layout & assembly
-├── create_mosaic()           top-level orchestrator
+├── generate_mosaic()         pure core generation pipeline
+├── create_mosaic()           top-level effectful shell
 ├── load_tile_metadata()      tile loading pipeline
 └── process_tile_path()       fused image processing pass
 ```

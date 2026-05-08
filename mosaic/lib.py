@@ -317,6 +317,35 @@ class InputImage:
         return resized.reshape(-1, 3)
 
 
+def generate_mosaic(
+    input_image: InputImage,
+    library: TileLibrary,
+    grid: MosaicGrid,
+) -> np.ndarray:
+    """Generate a mosaic array from pre-loaded components.
+
+    This is a pure core function that coordinates the matching and assembly
+    logic without performing any I/O.
+
+    Args:
+        input_image: The loaded source image.
+        library: The pre-loaded and optimized tile library.
+        grid: The pre-calculated mosaic grid layout.
+
+    Returns:
+        A NumPy array representing the final assembled mosaic image.
+
+    """
+    # 1. Extract target colours for matching
+    target_colors = input_image.get_target_colors(grid)
+
+    # 2. Match all tiles at once using the library's optimized interface
+    matched_tile_images = library.match(target_colors)
+
+    # 3. Assemble the final image using the grid's pure logic
+    return grid.assemble(matched_tile_images)
+
+
 def create_mosaic(
     input_image_path: Path,
     tiles_directory: Path,
@@ -325,6 +354,9 @@ def create_mosaic(
     tile_size: int,
 ) -> None:
     """Generate a mosaic and save it to a file.
+
+    This function acts as an effectful shell, handling all file I/O and
+    orchestrating the loading of the pure core components.
 
     Args:
         input_image_path: Path to the source image.
@@ -343,13 +375,8 @@ def create_mosaic(
     # Load and process tiles into an optimized library
     library = TileLibrary.from_directory(tiles_directory, tile_size)
 
-    # Extract target colours for matching
-    target_colors = input_img.get_target_colors(grid)
+    # Generate the mosaic using the pure core
+    mosaic = generate_mosaic(input_img, library, grid)
 
-    # Match all tiles at once using the library's optimized interface
-    matched_tile_images = library.match(target_colors)
-
-    # Assemble the final image using the grid's pure logic
-    mosaic = grid.assemble(matched_tile_images)
-
+    # Save the final result
     cv2.imwrite(str(output_path), mosaic)

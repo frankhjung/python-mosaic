@@ -10,6 +10,7 @@ from mosaic.lib import (
     Tile,
     TileLibrary,
     create_mosaic,
+    generate_mosaic,
     load_tile_metadata,
     process_tile_path,
 )
@@ -20,6 +21,7 @@ __all__ = [
     "Tile",
     "TileLibrary",
     "create_mosaic",
+    "generate_mosaic",
     "load_tile_metadata",
     "process_tile_path",
 ]

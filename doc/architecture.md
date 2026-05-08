@@ -29,7 +29,7 @@ the data level.
 
 | Name | Role | Hides |
 | ---- | ---- | ----- |
-| `InputImage`  | Source Logic | OpenCV I/O, resizing, flattening to target colours |
+| `InputImage` | Source Logic | OpenCV I/O, resizing, flattening to target colours |
 | `TileLibrary` | Memory & Matching | NumPy broadcasting, pre-stacked arrays, Redmean formula |
 | `MosaicGrid` | Geometry & Assembly | Grid arithmetic, axis swapping, final reshaping |
 | `TileProcessor` | Image Logic | OpenCV I/O, fused pixel scans, RMS dominant colour |
@@ -47,6 +47,7 @@ mosaic
 ├── load_tile_metadata()      tile loading pipeline
 └── process_tile_path()       fused image processing pass
 ```
+
 ## Component Diagram
 
 ```mermaid
@@ -58,46 +59,46 @@ graph TD
 
     subgraph LIB ["mosaic.lib"]
         C[create_mosaic]
-        D[load_tile_metadata]
-        E[process_single_tile]
-        F[resize_and_pad_image]
-        G[get_dominant_color]
-        H[get_average_color]
-        I[vectorized_match_tiles]
-        J[calculate_grid_dimensions]
+        D[generate_mosaic]
+        E[InputImage]
+        F[TileLibrary]
+        G[MosaicGrid]
+        H[load_tile_metadata]
+        I[process_tile_path]
     end
 
     subgraph EXT ["External"]
-        K[(Tile image files)]
-        L[(Input image)]
-        M[(Output mosaic)]
-        N[OpenCV / cv2]
-        O[NumPy]
+        J[(Tile image files)]
+        K[(Input image)]
+        L[(Output mosaic)]
+        M[OpenCV / cv2]
+        N[NumPy]
     end
 
     B --> A
     B --> C
 
-    C --> J
+    C --> E
+    C --> G
+    C --> F
     C --> D
-    C --> I
-    C --> N
+    C --> M
 
     D --> E
-    E --> F
-    E --> H
-    E --> N
+    D --> F
+    D --> G
 
-    F --> G
-    F --> N
+    F --> H
+    H --> I
+    I --> M
+    I --> N
 
-    G --> O
-    H --> O
-    I --> O
+    E --> M
+    G --> N
 
-    K -->|"iterdir()"| D
-    L --> C
-    C --> M
+    J --> H
+    K --> E
+    D --> L
 ```
 
 ## Sequence Diagram — mosaic generation
@@ -106,58 +107,49 @@ graph TD
 sequenceDiagram
     actor User
     participant CLI as __main__.main()
-    participant lib as lib.create_mosaic()
-    participant grid as lib.calculate_grid_dimensions()
-    participant loader as lib.load_tile_metadata()
-    participant tile as lib.process_single_tile()
-    participant match as lib.vectorized_match_tiles()
+    participant Shell as lib.create_mosaic()
+    participant Core as lib.generate_mosaic()
+    participant Input as lib.InputImage
+    participant Grid as lib.MosaicGrid
+    participant Lib as lib.TileLibrary
+    participant Proc as lib.process_tile_path()
     participant cv2 as OpenCV
-    participant np as NumPy
 
     User->>CLI: mosaic -i img.jpg -d tiles/ -o out.jpg -s 4000 -t 50
 
     CLI->>CLI: parse_arguments()
     CLI->>CLI: validate paths
 
-    CLI->>lib: create_mosaic(input, tiles_dir, output, size, tile_size)
+    CLI->>Shell: create_mosaic(input, tiles_dir, output, size, tile_size)
 
-    lib->>cv2: imread(input_image_path)
-    cv2-->>lib: input_image (H×W×3)
+    Shell->>Input: from_file(input_path)
+    Input->>cv2: imread(input_path)
+    Input-->>Shell: InputImage object
 
-    lib->>grid: calculate_grid_dimensions(h, w, output_size, tile_size)
-    grid-->>lib: (nx, ny, out_w, out_h)
+    Shell->>Grid: MosaicGrid(h, w, output_size, tile_size)
+    Grid-->>Shell: MosaicGrid object
 
-    lib->>loader: load_tile_metadata(tiles_dir, tile_size)
-    loop for each image file
-        loader->>tile: process_single_tile(path, tile_size)
-        tile->>cv2: imread(path)
-        cv2-->>tile: raw image
-        tile->>cv2: resize + copyMakeBorder
-        cv2-->>tile: padded square (H×W×3)
-        tile->>np: average over axes → avg_color (3,)
-        tile-->>loader: Tile(filename, image, avg_color)
-    end
-    loader-->>lib: list[Tile]  (M tiles)
+    Shell->>Lib: from_directory(tiles_dir, tile_size)
+    Lib->>Proc: process_tile_path(path, tile_size) [Parallel]
+    Proc->>cv2: imread / resize / copyMakeBorder
+    Proc-->>Lib: Tile objects
+    Lib-->>Shell: TileLibrary object (pre-stacked arrays)
 
-    lib->>cv2: resize(input_image, (nx, ny))
-    cv2-->>lib: input_small (ny×nx×3)
-    lib->>np: reshape → target_colors (N×3)
+    Shell->>Core: generate_mosaic(input_img, library, grid)
 
-    lib->>match: vectorized_match_tiles(target_colors, tiles)
-    match->>np: stack tile colors → (M×3)
-    match->>np: stack tile images → (M×H×W×3)
-    match->>np: broadcast distances (N×1×3) vs (1×M×3) → (N×M)
-    match->>np: argmin(axis=1) → best_indices (N,)
-    match->>np: index tile_images[best_indices] → (N×H×W×3)
-    match-->>lib: matched_tile_images (N×H×W×3)
+    Core->>Input: get_target_colors(grid)
+    Input-->>Core: target_colors (N×3)
 
-    lib->>np: reshape → grid (ny×nx×H×W×3)
-    lib->>np: swapaxes(1,2).reshape → mosaic (ny·H × nx·W × 3)
+    Core->>Lib: match(target_colors)
+    Lib-->>Core: matched_tile_images (N×H×W×3)
 
-    lib->>cv2: imwrite(output_path, mosaic)
-    cv2-->>lib: ok
+    Core->>Grid: assemble(matched_tile_images)
+    Grid-->>Core: mosaic_array (ny·H × nx·W × 3)
 
-    lib-->>CLI: (returns)
+    Core-->>Shell: mosaic_array
+
+    Shell->>cv2: imwrite(output_path, mosaic_array)
+    Shell-->>CLI: (returns)
     CLI->>User: "Mosaic created successfully at out.jpg"
 ```
 

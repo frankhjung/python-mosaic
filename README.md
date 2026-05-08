@@ -166,7 +166,12 @@ The project follows a standard Python package structure:
 │   ├── __main__.py
 │   └── lib.py
 ├── tests/                # unit tests
-│   └── test_mosaic_lib.py
+│   ├── test_mosaic_lib.py
+│   ├── test_tile_library.py
+│   ├── test_mosaic_grid.py
+│   ├── test_tile_processor.py
+│   ├── test_input_image.py
+│   └── test_generation.py
 └── README.md
 ```
 

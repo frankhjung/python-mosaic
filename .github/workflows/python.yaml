@@ -1,0 +1,75 @@
+---
+name: python-mosaic
+
+on:
+  push:
+    branches:
+      - main
+      - "feature*"
+  pull_request:
+    branches:
+      - main
+  schedule:
+    - cron: "0 0 * * *" # daily
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+
+      - name: setup
+        run: uv sync --frozen
+
+      - name: check
+        run: |
+          uv run ruff format --check .
+          uv run ruff check .
+
+      - name: security
+        run: uv run bandit -c .bandit.yaml -r mosaic/
+
+      - name: tests
+        run: |
+          uv run pytest -v \
+            --junitxml=pytest_report.xml \
+            --html=pytest_report.html \
+            --self-contained-html \
+            --cov-report term-missing \
+            --cov-report html \
+            --cov=mosaic \
+            tests
+
+      - name: docs
+        run: uv run pdoc mosaic/ --output-directory public
+
+      - name: upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-${{ matrix.python-version }}
+          path: |
+            htmlcov/
+            pytest_report.xml
+            pytest_report.html
+            public/
+          retention-days: 7
+
+      - name: show help
+        run: uv run python -m mosaic -h

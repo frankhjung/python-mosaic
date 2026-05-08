@@ -173,13 +173,14 @@ The project follows a standard Python package structure:
 ### Coding Approach
 
 - **Functional Programming**: The library uses functional programming
-  techniques. Functions are pure where possible and avoid maintaining global
-  state.
-- **Library Separation**: Core logic is isolated in
-  [mosaic/lib.py](mosaic/lib.py), making it easy to test and reuse.
-- **Tile Processing**: The `resize_and_pad_image` function handles non-square
-  images by scaling them to fit the target tile size while maintaining aspect
-  ratio, and padding the rest with the image's dominant color.
+  techniques. The core logic is isolated in pure modules (`TileLibrary`,
+  `MosaicGrid`) that operate on immutable data.
+- **Deep Modules**: The architecture is built around deep modules that hide
+  complex implementation details (like NumPy broadcasting and memory
+  optimizations) behind high-leverage interfaces.
+- **Tile Processing**: Image loading and processing are fused into a single
+  efficient pass (`process_tile_path`), minimizing redundant pixel scans and
+  improving performance.
 
 ## Documentation
 

@@ -1,6 +1,7 @@
 import numpy as np
-import pytest
+
 from mosaic.lib import MosaicGrid
+
 
 def test_mosaic_grid_dimensions():
     """Test that MosaicGrid correctly calculates dimensions and tile counts."""
@@ -10,10 +11,11 @@ def test_mosaic_grid_dimensions():
     # nx = 400 / 20 = 20
     # ny = 200 / 20 = 10
     grid = MosaicGrid(input_h=100, input_w=200, output_size=400, tile_size=20)
-    
+
     assert grid.num_tiles_x == 20
     assert grid.num_tiles_y == 10
     assert grid.output_shape == (200, 400)
+
 
 def test_mosaic_grid_assemble():
     """Test that MosaicGrid correctly assembles matched tiles into a mosaic."""
@@ -24,17 +26,19 @@ def test_mosaic_grid_assemble():
     matched_tiles = np.zeros((4, tile_size, tile_size, 3), dtype=np.uint8)
     for i in range(4):
         matched_tiles[i] = i
-        
-    grid = MosaicGrid(input_h=10, input_w=10, output_size=4, tile_size=tile_size)
+
+    grid = MosaicGrid(
+        input_h=10, input_w=10, output_size=4, tile_size=tile_size
+    )
     # Force grid layout for testing assembly directly
     grid.num_tiles_x = nx
     grid.num_tiles_y = ny
-    
+
     mosaic = grid.assemble(matched_tiles)
-    
+
     # Expected shape: (ny * tile_size, nx * tile_size, 3) = (4, 4, 3)
     assert mosaic.shape == (4, 4, 3)
-    
+
     # Check layout:
     # [0 0 1 1]
     # [0 0 1 1]

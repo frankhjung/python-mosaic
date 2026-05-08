@@ -166,7 +166,8 @@ class TileLibrary:
         target colour and every tile average colour simultaneously.
 
         Args:
-            target_colors: A NumPy array of shape (N, 3) representing BGR targets.
+            target_colors: A NumPy array of shape (N, 3) representing
+                BGR targets.
 
         Returns:
             A NumPy array of shape (N, tile_h, tile_w, 3) containing the best
@@ -215,6 +216,7 @@ class MosaicGrid:
             input_w: Original image width.
             output_size: Target size for the largest dimension.
             tile_size: The square size of each tile.
+
         """
         self.tile_size = tile_size
         scale_factor = output_size / max(input_h, input_w)
@@ -241,10 +243,15 @@ class MosaicGrid:
 
         Returns:
             The final assembled mosaic image.
+
         """
         # Reshape matched tiles back into a grid: (ny, nx, th, tw, 3)
         grid = matched_tiles.reshape(
-            self.num_tiles_y, self.num_tiles_x, self.tile_size, self.tile_size, 3
+            self.num_tiles_y,
+            self.num_tiles_x,
+            self.tile_size,
+            self.tile_size,
+            3,
         )
 
         # Assemble by rearranging axes and collapsing the grid
@@ -283,7 +290,10 @@ def create_mosaic(
     library = TileLibrary.from_directory(tiles_directory, tile_size)
 
     # Resize input to match the grid and flatten for vectorised matching
-    input_small = cast(np.ndarray, cv2.resize(input_image, (grid.num_tiles_x, grid.num_tiles_y)))
+    input_small = cast(
+        np.ndarray,
+        cv2.resize(input_image, (grid.num_tiles_x, grid.num_tiles_y)),
+    )
     target_colors = input_small.reshape(-1, 3)
 
     # Match all tiles at once using the library's optimized interface

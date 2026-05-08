@@ -25,31 +25,24 @@ the data level.
 | `image` | `np.ndarray` `(H, W, 3)` uint8 | Resized and padded square tile, BGR |
 | `average_color` | `np.ndarray` `(3,)` float64 | Mean BGR colour of the processed tile |
 
-### NumPy array shapes used at runtime
+### Core Modules
 
-| Name | Shape | Dtype | Where produced |
-| ---- | ----- | ----- | -------------- |
-| `target_colors` | `(N, 3)` | float64 | `create_mosaic` — input image downscaled to grid size then flattened; N = nx × ny |
-| `tile_colors` | `(M, 3)` | float64 | `vectorized_match_tiles` — stacked from all `Tile.average_color` |
-| `tile_images` | `(M, H, W, 3)` | uint8 | `vectorized_match_tiles` — stacked from all `Tile.image` |
-| `distances_sq` | `(N, M)` | float64 | `vectorized_match_tiles` — Redmean² distance for every target × tile pair |
-| `matched_tile_images` | `(N, H, W, 3)` | uint8 | `vectorized_match_tiles` — best tile for each grid cell |
-| `grid` | `(ny, nx, H, W, 3)` | uint8 | `create_mosaic` — matched images reshaped to 2-D grid |
-| `mosaic` | `(ny·H, nx·W, 3)` | uint8 | `create_mosaic` — final assembled image |
+| Name | Role | Hides |
+| ---- | ---- | ----- |
+| `TileLibrary` | Memory & Matching | NumPy broadcasting, pre-stacked arrays, Redmean formula |
+| `MosaicGrid` | Geometry & Assembly | Grid arithmetic, axis swapping, final reshaping |
+| `TileProcessor` | Image Logic | OpenCV I/O, fused pixel scans, RMS dominant colour |
 
 ## Public API (`mosaic/__init__.py`)
 
 ```text
 mosaic
 ├── Tile                      dataclass
+├── TileLibrary               matching & memory management
+├── MosaicGrid                layout & assembly
 ├── create_mosaic()           top-level orchestrator
 ├── load_tile_metadata()      tile loading pipeline
-├── process_single_tile()     per-file load / resize / pad
-├── vectorized_match_tiles()  NumPy-vectorised colour matching
-├── calculate_grid_dimensions() grid layout arithmetic
-├── resize_and_pad_image()    aspect-ratio resize + dominant-colour pad
-├── get_average_color()       mean BGR over all pixels
-└── get_dominant_color()      RMS BGR — better perceptual representation
+└── process_tile_path()       fused image processing pass
 ```
 
 ## Component Diagram

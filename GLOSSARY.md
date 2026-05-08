@@ -16,8 +16,12 @@ capabilities to find the best Tile for a given Target Color.
 **Target Color** — A BGR color value representing a cell in the downsampled
 Input Image that needs to be matched to a Tile.
 
-**Redmean Distance** — A perceptual color distance formula used to find the
-best match between a Target Color and a Tile's average color.
+**Tile Processor** — A module that fuses image loading, resizing, padding, and
+colour analysis into a single efficient pass to create a Tile.
+
+**Redmean Distance** — A perceptual colour distance formula used to find the
+best match between a Target Colour and a Tile's average colour. This formula
+weights the B, G, and R channels based on human perception.
 
 **Mosaic** — The final assembled image composed of many Tiles.
 

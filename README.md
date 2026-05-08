@@ -6,8 +6,8 @@ This will create a mosaic of images using an input image as a base. The mosaic
 will be created by using the average color of each tile in the input image to
 find the best matching image in the directory of images to use.
 
-See [conductor/architecture.md](conductor/architecture.md) for a detailed
-description of the project architecture, components, and data structures.
+See [doc/architecture.md](doc/architecture.md) for a detailed description of the
+project architecture, components, and data structures.
 
 ## Example - call mosaic generation with example images
 
@@ -17,7 +17,7 @@ make example
 
 ## Requirements
 
-- Python >= 3.10
+- Python >= 3.11
 - [uv](https://github.com/astral-sh/uv) package manager
 
 ### Dependencies
@@ -45,16 +45,34 @@ uv sync
 
 ### Run Checks and Tests
 
-You can run the standard checks using `make` (which uses `uv` internally) or run
-them directly with `uv`:
+Prefer using `make` for development workflows. Common targets:
 
 ```bash
-# Using Make
+# Run all checks, tests, and the run target (default)
 make
 
-# Using uv directly
-uv run ruff check .
-uv run pytest
+# Lint and format
+make check
+
+# Run unit tests
+make test
+
+# Run the application (shows help)
+make run
+
+# Run the example pipeline using test data
+make example
+
+# Clean generated files
+make clean
+```
+
+If you prefer running tools directly via `uv`, the equivalents are:
+
+```bash
+uv run ruff format <files>
+uv run ruff check --fix <files>
+uv run pytest -v tests/test_*.py
 ```
 
 ### Fix Ruff Warnings with uv
@@ -132,15 +150,23 @@ The project follows a standard Python package structure:
 ### Project Structure
 
 ```text
-mosaic/
-├── mosaic/
-│   ├── __init__.py      # Package init, exports public API
-│   ├── __main__.py      # CLI entry point for `python -m mosaic`
-│   └── lib.py           # Core library functions
-├── tests/
-│   └── test_mosaic_lib.py
-├── pyproject.toml
+.
 ├── Makefile
+├── pyproject.toml
+├── README.md
+├── LICENSE
+├── doc/                  # design docs and notes
+│   ├── architecture.md
+│   ├── modernize-mosaic.md
+│   └── performance-bottlenecks.md
+├── images/               # example tile images used by `make example`
+├── test_dupes/           # test data directory
+├── mosaic/               # package source
+│   ├── __init__.py
+│   ├── __main__.py
+│   └── lib.py
+├── tests/                # unit tests
+│   └── test_mosaic_lib.py
 └── README.md
 ```
 
@@ -149,20 +175,20 @@ mosaic/
 - **Functional Programming**: The library uses functional programming
   techniques. Functions are pure where possible and avoid maintaining global
   state.
-- **Library Separation**: Core logic is isolated in `mosaic/lib.py`, making it
-  easy to test and reuse.
+- **Library Separation**: Core logic is isolated in
+  [mosaic/lib.py](mosaic/lib.py), making it easy to test and reuse.
 - **Tile Processing**: The `resize_and_pad_image` function handles non-square
   images by scaling them to fit the target tile size while maintaining aspect
   ratio, and padding the rest with the image's dominant color.
 
-## Conductor
+## Documentation
 
-Folder containing design documents, performance analyses, and other notes
-related to the project.
+The [doc](doc/) directory contains the project's design documents, performance
+analyses, and other notes related to the project.
 
-- [Architecture](conductor/architecture.md)
-- [Modernize Mosaic](conductor/modernize-mosaic.md)
-- [Performance Bottlenecks](conductor/performance-bottlenecks.md)
+- [Architecture](doc/architecture.md)
+- [Modernize Mosaic](doc/modernize-mosaic.md)
+- [Performance Bottlenecks](doc/performance-bottlenecks.md)
 
 ## License
 

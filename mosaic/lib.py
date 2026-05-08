@@ -265,6 +265,58 @@ class MosaicGrid:
         return grid.swapaxes(1, 2).reshape(self.actual_h, self.actual_w, 3)
 
 
+class InputImage:
+    """Represents the source image that defines the mosaic composition."""
+
+    def __init__(self, image: np.ndarray) -> None:
+        """Initialize with an image array.
+
+        Args:
+            image: The loaded BGR image.
+
+        """
+        self._image = image
+        self.height, self.width = image.shape[:2]
+
+    @classmethod
+    def from_file(cls, filepath: Path) -> "InputImage":
+        """Load an InputImage from a file path.
+
+        Args:
+            filepath: Path to the image file.
+
+        Returns:
+            A new InputImage instance.
+
+        Raises:
+            ValueError: If the image cannot be loaded.
+
+        """
+        img = cast(np.ndarray | None, cv2.imread(str(filepath)))
+        if img is None:
+            raise ValueError(f"Could not load input image: {filepath}")
+        return cls(img)
+
+    def get_target_colors(self, grid: MosaicGrid) -> np.ndarray:
+        """Extract the target colours for the mosaic grid.
+
+        Resizes the input image to match the grid dimensions and flattens it
+        into a 1D array of colours.
+
+        Args:
+            grid: The MosaicGrid defining the layout.
+
+        Returns:
+            A NumPy array of shape (N, 3) where N is the number of tiles.
+
+        """
+        resized = cast(
+            np.ndarray,
+            cv2.resize(self._image, (grid.num_tiles_x, grid.num_tiles_y)),
+        )
+        return resized.reshape(-1, 3)
+
+
 def create_mosaic(
     input_image_path: Path,
     tiles_directory: Path,
@@ -285,22 +337,14 @@ def create_mosaic(
         ValueError: If no valid tiles are found or input image is invalid.
 
     """
-    input_image = cast(np.ndarray | None, cv2.imread(str(input_image_path)))  # type: ignore[misc]
-    if input_image is None:
-        raise ValueError(f"Could not load input image: {input_image_path}")
-
-    h, w = input_image.shape[:2]
-    grid = MosaicGrid(h, w, output_size, tile_size)
+    input_img = InputImage.from_file(input_image_path)
+    grid = MosaicGrid(input_img.height, input_img.width, output_size, tile_size)
 
     # Load and process tiles into an optimized library
     library = TileLibrary.from_directory(tiles_directory, tile_size)
 
-    # Resize input to match the grid and flatten for vectorised matching
-    input_small = cast(
-        np.ndarray,
-        cv2.resize(input_image, (grid.num_tiles_x, grid.num_tiles_y)),
-    )
-    target_colors = input_small.reshape(-1, 3)
+    # Extract target colours for matching
+    target_colors = input_img.get_target_colors(grid)
 
     # Match all tiles at once using the library's optimized interface
     matched_tile_images = library.match(target_colors)

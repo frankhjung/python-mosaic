@@ -5,6 +5,7 @@ generating high-performance mosaics using vectorised colour matching.
 """
 
 from mosaic.lib import (
+    InputImage,
     MosaicGrid,
     Tile,
     TileLibrary,
@@ -14,6 +15,7 @@ from mosaic.lib import (
 )
 
 __all__ = [
+    "InputImage",
     "MosaicGrid",
     "Tile",
     "TileLibrary",

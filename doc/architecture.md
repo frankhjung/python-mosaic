@@ -29,6 +29,7 @@ the data level.
 
 | Name | Role | Hides |
 | ---- | ---- | ----- |
+| `InputImage`  | Source Logic | OpenCV I/O, resizing, flattening to target colours |
 | `TileLibrary` | Memory & Matching | NumPy broadcasting, pre-stacked arrays, Redmean formula |
 | `MosaicGrid` | Geometry & Assembly | Grid arithmetic, axis swapping, final reshaping |
 | `TileProcessor` | Image Logic | OpenCV I/O, fused pixel scans, RMS dominant colour |
@@ -37,6 +38,7 @@ the data level.
 
 ```text
 mosaic
+├── InputImage                source image and target extraction
 ├── Tile                      dataclass
 ├── TileLibrary               matching & memory management
 ├── MosaicGrid                layout & assembly
@@ -44,7 +46,6 @@ mosaic
 ├── load_tile_metadata()      tile loading pipeline
 └── process_tile_path()       fused image processing pass
 ```
-
 ## Component Diagram
 
 ```mermaid

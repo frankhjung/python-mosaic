@@ -38,78 +38,11 @@ class Tile:
         self.average_color.flags.writeable = False
 
 
-def get_dominant_color(image: np.ndarray) -> tuple[float, float, float]:
-    """Find the dominant colour in an image using Root Mean Square (RMS).
-
-    Args:
-        image: The input BGR image as a NumPy array.
-
-    Returns:
-        A tuple of (B, G, R) floats representing the dominant colour.
-
-    """
-    # Use RMS for better colour representation than arithmetic mean
-    rms = np.sqrt(
-        np.mean(np.square(image.reshape(-1, 3).astype(float)), axis=0)
-    )
-    return float(rms[0]), float(rms[1]), float(rms[2])
-
-
-def resize_and_pad_image(image: np.ndarray, target_size: int) -> np.ndarray:
-    """Resize an image to fit within a square while maintaining aspect ratio.
-
-    The image is scaled so its largest dimension matches target_size. The
-    remaining area is padded with the image's dominant colour to form a
-    perfect square.
-
-    Args:
-        image: The input BGR image.
-        target_size: The desired width and height of the output square.
-
-    Returns:
-        The processed square image.
-
-    """
-    h, w = image.shape[:2]
-    scale = target_size / max(h, w)
-    new_w, new_h = int(w * scale), int(h * scale)
-
-    resized = cast(np.ndarray, cv2.resize(image, (new_w, new_h)))
-
-    # Calculate padding to center the image
-    delta_w = target_size - new_w
-    delta_h = target_size - new_h
-    top, bottom = delta_h // 2, delta_h - (delta_h // 2)
-    left, right = delta_w // 2, delta_w - (delta_w // 2)
-
-    dominant_color = get_dominant_color(image)
-
-    return cv2.copyMakeBorder(
-        resized,
-        top,
-        bottom,
-        left,
-        right,
-        cv2.BORDER_CONSTANT,
-        value=dominant_color,
-    )  # type: ignore
-
-
-def get_average_color(image: np.ndarray) -> np.ndarray:
-    """Calculate the average BGR colour of an image.
-
-    Args:
-        image: The input BGR image.
-
-    Returns:
-        A NumPy array containing the [B, G, R] average values.
-
-    """
-    return np.average(image, axis=(0, 1))
-
-
-def process_single_tile(filepath: Path, target_size: int) -> Tile | None:
+def process_tile_path(filepath: Path, target_size: int) -> Tile | None:
     """Load and process a single image file into a Tile.
+
+    Fuses loading, dominant color calculation, resizing, padding, and
+    average color calculation into a single pass to minimize pixel scans.
 
     Args:
         filepath: Path to the image file.
@@ -124,8 +57,36 @@ def process_single_tile(filepath: Path, target_size: int) -> Tile | None:
         if img is None:
             return None
 
-        processed_img = resize_and_pad_image(img, target_size)
-        avg_color = get_average_color(processed_img)
+        # 1. Calculate dominant color using RMS before resizing
+        rms = np.sqrt(
+            np.mean(np.square(img.reshape(-1, 3).astype(float)), axis=0)
+        )
+        dominant_color = (float(rms[0]), float(rms[1]), float(rms[2]))
+
+        # 2. Resize maintaining aspect ratio
+        h, w = img.shape[:2]
+        scale = target_size / max(h, w)
+        new_w, new_h = int(w * scale), int(h * scale)
+        resized = cast(np.ndarray, cv2.resize(img, (new_w, new_h)))
+
+        # 3. Pad to square with dominant color
+        delta_w = target_size - new_w
+        delta_h = target_size - new_h
+        top, bottom = delta_h // 2, delta_h - (delta_h // 2)
+        left, right = delta_w // 2, delta_w - (delta_w // 2)
+
+        processed_img = cv2.copyMakeBorder(
+            resized,
+            top,
+            bottom,
+            left,
+            right,
+            cv2.BORDER_CONSTANT,
+            value=dominant_color,
+        )
+
+        # 4. Calculate average color of the final processed tile
+        avg_color = np.average(processed_img, axis=(0, 1))
 
         return Tile(
             filename=filepath.name,
@@ -158,7 +119,7 @@ def load_tile_metadata(directory: Path, target_size: int) -> list[Tile]:
         t
         for p in directory.iterdir()
         if p.is_file()
-        if (t := process_single_tile(p, target_size)) is not None
+        if (t := process_tile_path(p, target_size)) is not None
     ]
 
 

@@ -9,10 +9,8 @@ from mosaic.lib import (
     Tile,
     TileLibrary,
     create_mosaic,
-    get_average_color,
-    get_dominant_color,
     load_tile_metadata,
-    resize_and_pad_image,
+    process_tile_path,
 )
 
 __all__ = [
@@ -20,8 +18,6 @@ __all__ = [
     "Tile",
     "TileLibrary",
     "create_mosaic",
-    "get_average_color",
-    "get_dominant_color",
     "load_tile_metadata",
-    "resize_and_pad_image",
+    "process_tile_path",
 ]

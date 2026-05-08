@@ -162,55 +162,83 @@ def load_tile_metadata(directory: Path, target_size: int) -> list[Tile]:
     ]
 
 
-def vectorized_match_tiles(
-    target_colors: np.ndarray,
-    tiles: list[Tile],
-) -> np.ndarray:
-    """Match multiple target colours to the best available tiles in one step.
+class TileLibrary:
+    """A collection of tiles with optimized matching capabilities."""
 
-    Uses NumPy broadcasting to calculate the Redmean distance between every
-    target colour and every tile average colour simultaneously.
+    def __init__(self, tiles: list[Tile]) -> None:
+        """Initialize the library with a list of tiles.
 
-    Args:
-        target_colors: A NumPy array of shape (N, 3) representing BGR targets.
-        tiles: A list of available Tile objects.
+        Args:
+            tiles: A list of Tile objects.
 
-    Returns:
-        A NumPy array of shape (N, tile_h, tile_w, 3) containing the best
-        matching tile images.
+        Raises:
+            ValueError: If the tiles list is empty.
 
-    """
-    if not tiles:
-        raise ValueError("No tiles provided for matching.")
+        """
+        if not tiles:
+            raise ValueError("No valid tiles provided for matching.")
 
-    # Extract tile data into contiguous arrays for vectorisation
-    tile_colors = np.array([t.average_color for t in tiles])  # (M, 3)
-    tile_images = np.array([t.image for t in tiles])  # (M, th, tw, 3)
+        self._tiles = tiles
+        # Pre-stack tile data into contiguous arrays for performance
+        self._tile_colors = np.array([t.average_color for t in tiles])
+        self._tile_images = np.array([t.image for t in tiles])
 
-    # Prepare for broadcasting: (N, 1, 3) vs (1, M, 3)
-    # This results in (N, M, 3) distance components
-    t_colors = target_colors[:, np.newaxis, :]
-    s_colors = tile_colors[np.newaxis, :, :]
+    @classmethod
+    def from_directory(cls, directory: Path, tile_size: int) -> "TileLibrary":
+        """Load tiles from a directory and create a TileLibrary.
 
-    # Extract B, G, R components for Redmean distance formula
-    r_t, r_s = t_colors[..., 2], s_colors[..., 2]
-    rmean = (r_t + r_s) / 2.0
+        Args:
+            directory: Path to the directory containing tile images.
+            tile_size: The square size each tile should be processed into.
 
-    dr = r_t - r_s
-    dg = t_colors[..., 1] - s_colors[..., 1]
-    db = t_colors[..., 0] - s_colors[..., 0]
+        Returns:
+            A new TileLibrary instance.
 
-    # Calculate squared Redmean distances (N, M)
-    w_r = 2.0 + rmean / BITS_PER_CHANNEL
-    w_g = 4.0
-    w_b = 2.0 + (MAX_COLOUR_VALUE - rmean) / BITS_PER_CHANNEL
+        """
+        tiles = load_tile_metadata(directory, tile_size)
+        return cls(tiles)
 
-    distances_sq = (w_r * dr**2) + (w_g * dg**2) + (w_b * db**2)
+    def match(self, target_colors: np.ndarray) -> np.ndarray:
+        """Match multiple target colours to the best available tiles.
 
-    # Find the index of the best matching tile for each target pixel
-    best_indices = np.argmin(distances_sq, axis=1)
+        Uses NumPy broadcasting to calculate the Redmean distance between every
+        target colour and every tile average colour simultaneously.
 
-    return tile_images[best_indices]
+        Args:
+            target_colors: A NumPy array of shape (N, 3) representing BGR targets.
+
+        Returns:
+            A NumPy array of shape (N, tile_h, tile_w, 3) containing the best
+            matching tile images.
+
+        """
+        # Prepare for broadcasting: (N, 1, 3) vs (1, M, 3)
+        t_colors = target_colors[:, np.newaxis, :]
+        s_colors = self._tile_colors[np.newaxis, :, :]
+
+        # Extract B, G, R components for Redmean distance formula
+        r_t, r_s = t_colors[..., 2], s_colors[..., 2]
+        rmean = (r_t + r_s) / 2.0
+
+        dr = r_t - r_s
+        dg = t_colors[..., 1] - s_colors[..., 1]
+        db = t_colors[..., 0] - s_colors[..., 0]
+
+        # Calculate squared Redmean distances (N, M)
+        w_r = 2.0 + rmean / BITS_PER_CHANNEL
+        w_g = 4.0
+        w_b = 2.0 + (MAX_COLOUR_VALUE - rmean) / BITS_PER_CHANNEL
+
+        distances_sq = (w_r * dr**2) + (w_g * dg**2) + (w_b * db**2)
+
+        # Find the index of the best matching tile for each target pixel
+        best_indices = np.argmin(distances_sq, axis=1)
+
+        return self._tile_images[best_indices]
+
+    def __len__(self) -> int:
+        """Return the number of tiles in the library."""
+        return len(self._tiles)
 
 
 def calculate_grid_dimensions(
@@ -277,17 +305,15 @@ def create_mosaic(
         h, w, output_size, tile_size
     )
 
-    # Load and process tiles
-    tiles = load_tile_metadata(tiles_directory, tile_size)
-    if not tiles:
-        raise ValueError("No valid tiles found in the specified directory.")
+    # Load and process tiles into an optimized library
+    library = TileLibrary.from_directory(tiles_directory, tile_size)
 
     # Resize input to match the grid and flatten for vectorised matching
     input_small = cast(np.ndarray, cv2.resize(input_image, (nx, ny)))
     target_colors = input_small.reshape(-1, 3)
 
-    # Match all tiles at once
-    matched_tile_images = vectorized_match_tiles(target_colors, tiles)
+    # Match all tiles at once using the library's optimized interface
+    matched_tile_images = library.match(target_colors)
 
     # Reshape matched tiles back into a grid: (ny, nx, th, tw, 3)
     grid = matched_tile_images.reshape(ny, nx, tile_size, tile_size, 3)

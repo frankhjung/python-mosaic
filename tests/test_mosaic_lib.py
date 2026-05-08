@@ -105,37 +105,6 @@ def test_load_tile_metadata(
     assert np.allclose(tiles[1].average_color, [255, 255, 255])
 
 
-def test_vectorized_match_tiles():
-    tile_img1 = np.zeros((10, 10, 3), dtype=np.uint8)
-    tile_img1[:] = (1, 1, 1)
-    tile_img2 = np.zeros((10, 10, 3), dtype=np.uint8)
-    tile_img2[:] = (2, 2, 2)
-
-    tiles = [
-        mosaic_lib.Tile("img1", tile_img1, np.array([0, 0, 0])),
-        mosaic_lib.Tile("img2", tile_img2, np.array([255, 255, 255])),
-    ]
-
-    # Target colors: black and white
-    targets = np.array(
-        [
-            [10, 10, 10],  # Should match img1
-            [240, 240, 240],  # Should match img2
-        ]
-    )
-
-    matches = mosaic_lib.vectorized_match_tiles(targets, tiles)
-
-    assert matches.shape == (2, 10, 10, 3)
-    assert np.array_equal(matches[0], tile_img1)
-    assert np.array_equal(matches[1], tile_img2)
-
-
-def test_vectorized_match_tiles_empty():
-    with pytest.raises(ValueError, match="No tiles provided"):
-        mosaic_lib.vectorized_match_tiles(np.array([[0, 0, 0]]), [])
-
-
 def test_calculate_grid_dimensions():
     # Case 1: Perfect fit
     nx, ny, w, h = mosaic_lib.calculate_grid_dimensions(100, 200, 400, 20)

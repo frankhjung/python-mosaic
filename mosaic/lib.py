@@ -32,6 +32,11 @@ class Tile:
     image: np.ndarray
     average_color: np.ndarray
 
+    def __post_init__(self) -> None:
+        """Mark stored arrays as read-only to honour frozen semantics."""
+        self.image.flags.writeable = False
+        self.average_color.flags.writeable = False
+
 
 def get_dominant_color(image: np.ndarray) -> tuple[float, float, float]:
     """Find the dominant colour in an image using Root Mean Square (RMS).

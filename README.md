@@ -6,6 +6,9 @@ This will create a mosaic of images using an input image as a base. The mosaic
 will be created by using the average color of each tile in the input image to
 find the best matching image in the directory of images to use.
 
+See [conductor/architecture.md](conductor/architecture.md) for a detailed
+description of the project architecture, components, and data structures.
+
 ## Example - call mosaic generation with example images
 
 ```bash
@@ -86,7 +89,7 @@ mosaic -i INPUT -d DIRECTORY -o OUTPUT -s SIZE -t TILE
 ```
 
 | Option | Description |
-|--------|-------------|
+| ------ | ----------- |
 | `-i, --input` | Path to the input image |
 | `-d, --directory` | Directory containing tile images |
 | `-o, --output` | Path for the output mosaic image |
@@ -151,6 +154,15 @@ mosaic/
 - **Tile Processing**: The `resize_and_pad_image` function handles non-square
   images by scaling them to fit the target tile size while maintaining aspect
   ratio, and padding the rest with the image's dominant color.
+
+## Conductor
+
+Folder containing design documents, performance analyses, and other notes
+related to the project.
+
+- [Architecture](conductor/architecture.md)
+- [Modernize Mosaic](conductor/modernize-mosaic.md)
+- [Performance Bottlenecks](conductor/performance-bottlenecks.md)
 
 ## License
 

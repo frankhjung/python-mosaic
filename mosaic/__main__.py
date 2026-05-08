@@ -1,8 +1,6 @@
 #!/usr/bin/env python
-# flake8: noqa E203
 
-"""
-CLI entry point for the mosaic generation tool.
+"""CLI entry point for the mosaic generation tool.
 
 This module provides a command-line interface to create mosaic images from
 a base image and a directory of tile images.
@@ -21,11 +19,11 @@ ERROR_EXIT_CODE: Final[int] = 1
 
 
 def get_version() -> str:
-    """
-    Retrieves the current version of the mosaic package.
+    """Retrieve the current version of the mosaic package.
 
     Returns:
-        The version string or 'unknown' if the package is not installed.
+        The version string, or ``'unknown'`` if the package is not installed.
+
     """
     try:
         return version("mosaic")
@@ -34,11 +32,11 @@ def get_version() -> str:
 
 
 def parse_arguments() -> argparse.Namespace:
-    """
-    Parses command-line arguments for the mosaic creation script.
+    """Parse command-line arguments for the mosaic creation script.
 
     Returns:
-        An argparse.Namespace object containing the parsed arguments.
+        Parsed arguments as an ``argparse.Namespace``.
+
     """
     parser = argparse.ArgumentParser(
         description="Create a mosaic of images using an input image as a base."
@@ -88,11 +86,10 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def main() -> NoReturn:
-    """
-    Main execution logic for the mosaic CLI.
+    """Run the mosaic CLI.
 
-    Parses arguments, validates paths, and invokes the mosaic creation library.
-    Exits with code 0 on success or 1 on error.
+    Parses arguments, validates paths, and invokes the mosaic creation
+    library. Exits with code 0 on success or 1 on error.
     """
     args = parse_arguments()
 

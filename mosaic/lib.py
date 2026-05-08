@@ -241,39 +241,54 @@ class TileLibrary:
         return len(self._tiles)
 
 
-def calculate_grid_dimensions(
-    input_h: int,
-    input_w: int,
-    output_size: int,
-    tile_size: int,
-) -> tuple[int, int, int, int]:
-    """Calculate the grid layout and final output dimensions.
+class MosaicGrid:
+    """Handles the geometric layout and assembly of a mosaic."""
 
-    Args:
-        input_h: Original image height.
-        input_w: Original image width.
-        output_size: Target size for the largest dimension of the mosaic.
-        tile_size: The size of each square tile.
+    def __init__(
+        self, input_h: int, input_w: int, output_size: int, tile_size: int
+    ) -> None:
+        """Calculate grid layout and dimensions.
 
-    Returns:
-        A tuple of (num_tiles_x, num_tiles_y, actual_w, actual_h).
+        Args:
+            input_h: Original image height.
+            input_w: Original image width.
+            output_size: Target size for the largest dimension.
+            tile_size: The square size of each tile.
+        """
+        self.tile_size = tile_size
+        scale_factor = output_size / max(input_h, input_w)
+        scaled_h, scaled_w = (
+            int(input_h * scale_factor),
+            int(input_w * scale_factor),
+        )
 
-    """
-    scale_factor = output_size / max(input_h, input_w)
-    scaled_h, scaled_w = (
-        int(input_h * scale_factor),
-        int(input_w * scale_factor),
-    )
+        self.num_tiles_x = math.ceil(scaled_w / tile_size)
+        self.num_tiles_y = math.ceil(scaled_h / tile_size)
+        self.actual_w = self.num_tiles_x * tile_size
+        self.actual_h = self.num_tiles_y * tile_size
 
-    num_tiles_x = math.ceil(scaled_w / tile_size)
-    num_tiles_y = math.ceil(scaled_h / tile_size)
+    @property
+    def output_shape(self) -> tuple[int, int]:
+        """Return the final (H, W) of the mosaic."""
+        return (self.actual_h, self.actual_w)
 
-    return (
-        num_tiles_x,
-        num_tiles_y,
-        num_tiles_x * tile_size,
-        num_tiles_y * tile_size,
-    )
+    def assemble(self, matched_tiles: np.ndarray) -> np.ndarray:
+        """Assemble a flat array of matched tile images into a mosaic grid.
+
+        Args:
+            matched_tiles: Array of shape (N, th, tw, 3).
+
+        Returns:
+            The final assembled mosaic image.
+        """
+        # Reshape matched tiles back into a grid: (ny, nx, th, tw, 3)
+        grid = matched_tiles.reshape(
+            self.num_tiles_y, self.num_tiles_x, self.tile_size, self.tile_size, 3
+        )
+
+        # Assemble by rearranging axes and collapsing the grid
+        # (ny, nx, th, tw, 3) -> (ny, th, nx, tw, 3) -> (ny*th, nx*tw, 3)
+        return grid.swapaxes(1, 2).reshape(self.actual_h, self.actual_w, 3)
 
 
 def create_mosaic(
@@ -301,26 +316,19 @@ def create_mosaic(
         raise ValueError(f"Could not load input image: {input_image_path}")
 
     h, w = input_image.shape[:2]
-    nx, ny, out_w, out_h = calculate_grid_dimensions(
-        h, w, output_size, tile_size
-    )
+    grid = MosaicGrid(h, w, output_size, tile_size)
 
     # Load and process tiles into an optimized library
     library = TileLibrary.from_directory(tiles_directory, tile_size)
 
     # Resize input to match the grid and flatten for vectorised matching
-    input_small = cast(np.ndarray, cv2.resize(input_image, (nx, ny)))
+    input_small = cast(np.ndarray, cv2.resize(input_image, (grid.num_tiles_x, grid.num_tiles_y)))
     target_colors = input_small.reshape(-1, 3)
 
     # Match all tiles at once using the library's optimized interface
     matched_tile_images = library.match(target_colors)
 
-    # Reshape matched tiles back into a grid: (ny, nx, th, tw, 3)
-    grid = matched_tile_images.reshape(ny, nx, tile_size, tile_size, 3)
-
-    # Assemble the final image by rearranging axes and collapsing the grid
-    # Initial shape: (ny, nx, th, tw, 3)
-    # Desired shape: (ny * th, nx * tw, 3)
-    mosaic = grid.swapaxes(1, 2).reshape(out_h, out_w, 3)
+    # Assemble the final image using the grid's pure logic
+    mosaic = grid.assemble(matched_tile_images)
 
     cv2.imwrite(str(output_path), mosaic)

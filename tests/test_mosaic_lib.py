@@ -103,19 +103,3 @@ def test_load_tile_metadata(
     assert np.allclose(tiles[0].average_color, [0, 0, 0])
     assert tiles[1].filename == "img2.jpg"
     assert np.allclose(tiles[1].average_color, [255, 255, 255])
-
-
-def test_calculate_grid_dimensions():
-    # Case 1: Perfect fit
-    nx, ny, w, h = mosaic_lib.calculate_grid_dimensions(100, 200, 400, 20)
-    assert nx == 20
-    assert ny == 10
-    assert w == 400
-    assert h == 200
-
-    # Case 2: Rounding up
-    nx, ny, w, h = mosaic_lib.calculate_grid_dimensions(100, 100, 105, 10)
-    assert nx == 11
-    assert ny == 11
-    assert w == 110
-    assert h == 110

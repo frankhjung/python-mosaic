@@ -5,9 +5,9 @@ generating high-performance mosaics using vectorised colour matching.
 """
 
 from mosaic.lib import (
+    MosaicGrid,
     Tile,
     TileLibrary,
-    calculate_grid_dimensions,
     create_mosaic,
     get_average_color,
     get_dominant_color,
@@ -16,9 +16,9 @@ from mosaic.lib import (
 )
 
 __all__ = [
+    "MosaicGrid",
     "Tile",
     "TileLibrary",
-    "calculate_grid_dimensions",
     "create_mosaic",
     "get_average_color",
     "get_dominant_color",

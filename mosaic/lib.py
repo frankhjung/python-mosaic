@@ -5,7 +5,9 @@ vectorised mosaic construction using NumPy and OpenCV.
 """
 
 import math
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from typing import Final, cast
 
@@ -99,7 +101,7 @@ def process_tile_path(filepath: Path, target_size: int) -> Tile | None:
 
 
 def load_tile_metadata(directory: Path, target_size: int) -> list[Tile]:
-    """Load and process all images from a directory into Tiles.
+    """Load and process all images from a directory into Tiles in parallel.
 
     Args:
         directory: The directory containing source images.
@@ -115,12 +117,16 @@ def load_tile_metadata(directory: Path, target_size: int) -> list[Tile]:
     if not directory.is_dir():
         raise FileNotFoundError(f"Directory not found: {directory}")
 
-    return [
-        t
-        for p in directory.iterdir()
-        if p.is_file()
-        if (t := process_tile_path(p, target_size)) is not None
-    ]
+    paths = [p for p in directory.iterdir() if p.is_file()]
+    if not paths:
+        return []
+
+    # Use process pool for CPU-bound image processing
+    process_func = partial(process_tile_path, target_size=target_size)
+    with ProcessPoolExecutor() as executor:
+        results = list(executor.map(process_func, paths))
+
+    return [t for t in results if t is not None]
 
 
 class TileLibrary:
